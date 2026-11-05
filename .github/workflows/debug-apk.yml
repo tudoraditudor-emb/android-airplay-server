@@ -1,0 +1,42 @@
+name: Debug APK (no signing required)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set version
+        run: echo "version=$(sed -n 's/.*versionName = \"\(.*\)".*/\1/p' app/build.gradle.kts)" >> $GITHUB_ENV
+
+      - name: Use JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: "zulu"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Build debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airplay-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Publish debug release
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Debug Build v${{ env.version }}
+          tag_name: debug-latest
+          prerelease: true
+          files: app/build/outputs/apk/debug/app-debug.apk
